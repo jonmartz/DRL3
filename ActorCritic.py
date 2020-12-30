@@ -1,7 +1,7 @@
 import gym
 import numpy as np
 import tensorflow as tf
-from Models import NeuralNetwork, SavedModel
+from Models import NeuralNetwork
 from time import time
 import matplotlib.pyplot as plt
 from collections import deque
@@ -78,33 +78,27 @@ class ActorCritic:
                 n_got_less_than_great_reward = 0
                 n_memory_failed = 0
 
-            graph = None
-            if self.saved_path is not None:  # create new networks
-                saver = tf.compat.v1.train.import_meta_graph('%s.meta' % self.saved_path)
-                saved_dir = self.saved_path.split('/')
-                saved_dir = '/'.join(saved_dir[:-1])
-                saver.restore(sess, tf.compat.v1.train.latest_checkpoint('%s/' % saved_dir))
-                graph = tf.compat.v1.get_default_graph()
-                self.policy_net = SavedModel('policy_net', graph, self.policy_lr, self.action_space)
-                self.baseline_net = SavedModel('baseline_net', graph, self.baseline_lr)
+            self.policy_net = NeuralNetwork(self.state_size, self.env_action_size, self.policy_lr,
+                                            self.policy_hidden_layers, 'policy_net')
+            self.baseline_net = NeuralNetwork(self.state_size, 1, self.baseline_lr,
+                                              self.baseline_hidden_layers, 'baseline_net')
+            self.policy_net.set_output(self.env_action_size, self.action_space).set_policy_loss(
+                self.action_space).set_train_step()
+            self.baseline_net.set_output().set_baseline_loss().set_train_step()
+
+            if saved_path is not None:
+                saver = tf.compat.v1.train.Saver()
+                saver.restore(sess, saved_path)
             else:
-                self.policy_net = NeuralNetwork(self.state_size, self.env_action_size, self.policy_lr,
-                                                self.policy_hidden_layers, 'policy_net', graph)
-                self.baseline_net = NeuralNetwork(self.state_size, 1, self.baseline_lr,
-                                                  self.baseline_hidden_layers, 'baseline_net', graph)
-                self.policy_net.set_output(self.env_action_size, self.action_space).set_policy_loss(
-                    self.action_space).set_train_step()
-                self.baseline_net.set_output().set_baseline_loss().set_train_step()
+                sess.run(tf.compat.v1.global_variables_initializer())
 
             solving_ep, time_to_solve = None, None
             start_time = int(round(time() * 1000))
 
-            sess.run(tf.compat.v1.global_variables_initializer())
             solved = False
             episode_rewards = np.zeros(self.max_episodes)
             avg_ep_policy_losses = np.zeros(self.max_episodes)
             avg_ep_baseline_losses = np.zeros(self.max_episodes)
-            average_rewards = 0.0
 
             average_rewards_total = []
             average_policy_losses_total = []
@@ -229,7 +223,10 @@ class ActorCritic:
                         print('SOLVED!!!')
                         time_to_solve = (round(time() * 1000) - start_time) / 1000
                         solving_ep = self.max_episodes
-                        tf.compat.v1.train.Saver().save(sess, 'saved models/%s/model' % self.name)
+                        if saved_path is None:
+                            saver = tf.compat.v1.train.Saver()
+                            save_path = saver.save(sess, 'saved_models/%s/model' % self.name)
+                            print("Model saved in path: %s" % save_path)
 
                     if self.stop_at_solved:
                         break
@@ -244,8 +241,8 @@ class ActorCritic:
 
 if __name__ == "__main__":
     # todo: choose env
-    # env_name = 'CartPole-v1'  # state_size=4, action_size=2
-    env_name = 'Acrobot-v1'  # state_size=6, action_size=3
+    env_name = 'CartPole-v1'  # state_size=4, action_size=2
+    # env_name = 'Acrobot-v1'  # state_size=6, action_size=3
     # env_name = 'MountainCarContinuous-v0'  # state_size=2, action_size=continuous
 
     render = False
@@ -267,7 +264,7 @@ if __name__ == "__main__":
     global_state_size, global_action_size = 6, 3
 
     # saved_path = None
-    saved_path = 'saved models/%s/model' % env_name
+    saved_path = 'saved_models/%s/model' % env_name
     env = gym.make(env_name)
     max_steps = env.spec.max_episode_steps + 1
     reward_threshold = env.spec.reward_threshold

@@ -8,14 +8,12 @@ class NeuralNetwork:
     Network for predicting the best action given a state.
     """
 
-    def __init__(self, state_size, output_size, learning_rate, hidden_layer_sizes, name, graph=None, fine_tune=False):
+    def __init__(self, state_size, output_size, learning_rate, hidden_layer_sizes, name):
         self.state_size = state_size
         self.output_size = output_size
         self.learning_rate = learning_rate
         self.hidden_layer_sizes = hidden_layer_sizes
         self.name = name
-        self.graph = graph
-        self.fine_tune = fine_tune
 
         with tf.compat.v1.variable_scope(name, reuse=tf.compat.v1.AUTO_REUSE):
             self.scope = tf.compat.v1.get_variable_scope()
@@ -33,14 +31,10 @@ class NeuralNetwork:
             prev_layer_size, hidden_output = self.state_size, self.state
             # for i, layer_size in enumerate(hidden_layer_sizes + [self.output_size]):
             for i, layer_size in enumerate(hidden_layer_sizes):
-                if graph is None:
-                    W = tf.compat.v1.get_variable('W%d' % i, [prev_layer_size, layer_size],
-                                                  initializer=tf.compat.v1.initializers.glorot_uniform(seed=0))
-                    b = tf.compat.v1.get_variable('b%d' % i, [layer_size],
-                                                  initializer=tf.compat.v1.zeros_initializer())
-                else:
-                    W = [var for var in tf.compat.v1.global_variables() if var.op.name == '%s/W%d' % (name, i)][0]
-                    b = [var for var in tf.compat.v1.global_variables() if var.op.name == '%s/b%d' % (name, i)][0]
+                W = tf.compat.v1.get_variable('W%d' % i, [prev_layer_size, layer_size],
+                                              initializer=tf.compat.v1.initializers.glorot_uniform(seed=0))
+                b = tf.compat.v1.get_variable('b%d' % i, [layer_size],
+                                              initializer=tf.compat.v1.zeros_initializer())
                 hidden_output = tf.compat.v1.add(tf.compat.v1.matmul(hidden_output, W), b)
                 # if i < len(hidden_layer_sizes):  # skip activation in last output layer
                 #     hidden_output = tf.compat.v1.nn.relu(hidden_output)
@@ -49,7 +43,6 @@ class NeuralNetwork:
                 self.bs.append(b)
                 self.hidden_outputs.append(hidden_output)
                 prev_layer_size = layer_size
-            # self.output = self.outputs[-1]
 
     def set_output(self, output_size=1, action_space='discrete'):
         with tf.compat.v1.variable_scope(self.scope, reuse=tf.compat.v1.AUTO_REUSE):
@@ -60,17 +53,10 @@ class NeuralNetwork:
             prev_layer_size = self.hidden_layer_sizes[-1]
             hidden_output = self.hidden_outputs[-1]
             if action_space == 'discrete':
-                if self.graph is None or self.fine_tune:
-                    W = tf.compat.v1.get_variable('W_out_%s' % self.name, [prev_layer_size, output_size],
-                                                  initializer=tf.compat.v1.initializers.glorot_uniform(seed=0))
-                    b = tf.compat.v1.get_variable('b_out_%s' % self.name, [output_size],
-                                                  initializer=tf.compat.v1.zeros_initializer())
-                else:
-                    W = [var for var in tf.compat.v1.global_variables() if var.op.name == 'W_out_%s' % self.name][0]
-                    b = [var for var in tf.compat.v1.global_variables() if var.op.name == 'b_out_%s' % self.name][0]
-                    # b = [var for var in tf.compat.v1.global_variables() if var.op.name == '%s/b_out_%s' % (self.name, self.name)][0]
-                    # W = self.graph.get_tensor_by_name('%s/W_out_%s:0' % (self.name, self.name))
-                    # b = self.graph.get_tensor_by_name('%s/b_out_%s:0' % (self.name, self.name))
+                W = tf.compat.v1.get_variable('W_out_%s' % self.name, [prev_layer_size, output_size],
+                                              initializer=tf.compat.v1.initializers.glorot_uniform(seed=0))
+                b = tf.compat.v1.get_variable('b_out_%s' % self.name, [output_size],
+                                              initializer=tf.compat.v1.zeros_initializer())
                 self.output = tf.compat.v1.add(tf.compat.v1.matmul(hidden_output, W), b, name='output_discrete')
             elif action_space == 'continuous':
                 W, b, self.output = [], [], []
@@ -122,33 +108,33 @@ class NeuralNetwork:
             self.train_step = self.optimizer.minimize(self.loss, var_list=var_list, name='train_step')
 
 
-class SavedModel:
-    def __init__(self, model_name, graph, learning_rate, action_space='discrete'):
-        # with tf.compat.v1.variable_scope(model_name + , reuse=tf.compat.v1.AUTO_REUSE):
-        self.model_name = model_name
-        self.graph = graph
-
-        self.var_names = [var_name for var_name in graph._names_in_use if model_name in var_name]
-        self.state = self.get_var('state')
-        self.target = self.get_var('target')
-        self.loss = self.get_var('loss')
-        # self.train_step = self.get_var('train_step')
-        if action_space == 'discrete':
-            self.output = self.get_var('output_discrete')
-        elif action_space == 'continuous':
-            self.sampled_action = self.get_var('sampled_action')
-            self.output = [self.get_var('output_mean'), self.get_var('output_stdev')]
-        try:
-            self.action = self.get_var('action')
-            self.actions_distribution = self.get_var('actions_distribution')
-        except:
-            pass
-
-        self.optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=learning_rate)
-        self.train_step = self.optimizer.minimize(self.loss, name='train_step')
-
-    def get_var(self, target_name):
-        var_names = [name for name in self.var_names if target_name in name]
-        var_names = [name for name in var_names if name.count('/') == 1]
-        var_name = var_names[0] + ':0'
-        return self.graph.get_tensor_by_name(var_name)
+# class SavedModel:
+#     def __init__(self, model_name, graph, learning_rate, action_space='discrete'):
+#         # with tf.compat.v1.variable_scope(model_name + , reuse=tf.compat.v1.AUTO_REUSE):
+#         self.model_name = model_name
+#         self.graph = graph
+#
+#         self.var_names = [var_name for var_name in graph._names_in_use if model_name in var_name]
+#         self.state = self.get_var('state')
+#         self.target = self.get_var('target')
+#         self.loss = self.get_var('loss')
+#         # self.train_step = self.get_var('train_step')
+#         if action_space == 'discrete':
+#             self.output = self.get_var('output_discrete')
+#         elif action_space == 'continuous':
+#             self.sampled_action = self.get_var('sampled_action')
+#             self.output = [self.get_var('output_mean'), self.get_var('output_stdev')]
+#         try:
+#             self.action = self.get_var('action')
+#             self.actions_distribution = self.get_var('actions_distribution')
+#         except:
+#             pass
+#
+#         self.optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=learning_rate)
+#         self.train_step = self.optimizer.minimize(self.loss, name='train_step')
+#
+#     def get_var(self, target_name):
+#         var_names = [name for name in self.var_names if target_name in name]
+#         var_names = [name for name in var_names if name.count('/') == 1]
+#         var_name = var_names[0] + ':0'
+#         return self.graph.get_tensor_by_name(var_name)
