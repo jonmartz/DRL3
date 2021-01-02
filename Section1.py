@@ -2,6 +2,7 @@ import gym
 from ActorCritic import ActorCritic
 import matplotlib.pyplot as plt
 import csv
+import os
 
 
 # todo: choose env
@@ -19,7 +20,7 @@ params = {
         'policy_hidden_layers': [12], 'baseline_hidden_layers': [12], 'policy_lr': 0.0004, 'baseline_lr': 0.001,
         'action_space': 'discrete', 'use_memory': False},
     'MountainCarContinuous-v0': {
-        'policy_hidden_layers': [64], 'baseline_hidden_layers': [512], 'policy_lr': 0.0001, 'baseline_lr': 0.01,
+        'policy_hidden_layers': [48], 'baseline_hidden_layers': [480], 'policy_lr': 0.0001, 'baseline_lr': 0.01,
         'action_space': 'continuous', 'use_memory': False},
 }
 global_state_size, global_action_size = 6, 3
@@ -31,18 +32,22 @@ agent = ActorCritic(env_name, env, global_state_size, global_action_size,
                     render=render, eps_to_render=eps_to_render, **params[env_name])
 results = agent.train()
 
+dir_name = 'train history section 1'
+if not os.path.exists(f'{dir_name}'):
+    os.makedirs(f'{dir_name}')
+
 # plot
 avg_rewards = results[0]
 plt.plot(range(1, len(avg_rewards) + 1), avg_rewards)
 plt.xlabel('episode')
 plt.ylabel('last 100 eps. average reward')
-plt.savefig('train history/%s.png' % env_name, bbox_inches='tight')
+plt.savefig(f'{dir_name}/{env_name}.png', bbox_inches='tight')
 plt.show()
 
 # save to csv
 solving_ep = results[-2]
 time_to_solve = results[-1]
-with open('train history/%s.csv' % env_name, 'w', newline='') as file:
+with open(f'{dir_name}/{env_name}.csv', 'w', newline='') as file:
     writer = csv.writer(file)
     header = ['episode', 'avg 100 rewards', 'avg 100 policy loss',
               'avg 100 baseline loss', 'time to solve']

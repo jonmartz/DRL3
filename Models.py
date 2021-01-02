@@ -29,22 +29,19 @@ class NeuralNetwork:
             self.Ws, self.bs, self.hidden_outputs = [], [], []
 
             prev_layer_size, hidden_output = self.state_size, self.state
-            # for i, layer_size in enumerate(hidden_layer_sizes + [self.output_size]):
             for i, layer_size in enumerate(hidden_layer_sizes):
                 W = tf.compat.v1.get_variable('W%d' % i, [prev_layer_size, layer_size],
                                               initializer=tf.compat.v1.initializers.glorot_uniform(seed=0))
                 b = tf.compat.v1.get_variable('b%d' % i, [layer_size],
                                               initializer=tf.compat.v1.zeros_initializer())
                 hidden_output = tf.compat.v1.add(tf.compat.v1.matmul(hidden_output, W), b)
-                # if i < len(hidden_layer_sizes):  # skip activation in last output layer
-                #     hidden_output = tf.compat.v1.nn.relu(hidden_output)
                 hidden_output = tf.compat.v1.nn.relu(hidden_output)
                 self.Ws.append(W)
                 self.bs.append(b)
                 self.hidden_outputs.append(hidden_output)
                 prev_layer_size = layer_size
 
-    def set_output(self, output_size=1, action_space='discrete'):
+    def set_output(self, output_size=1, action_space='discrete', prefix=''):
         with tf.compat.v1.variable_scope(self.scope, reuse=tf.compat.v1.AUTO_REUSE):
         # with tf.compat.v1.name_scope(self.scope.original_name_scope):
             if self.output is not None:  # changing existing output
@@ -53,20 +50,21 @@ class NeuralNetwork:
             prev_layer_size = self.hidden_layer_sizes[-1]
             hidden_output = self.hidden_outputs[-1]
             if action_space == 'discrete':
-                W = tf.compat.v1.get_variable('W_out_%s' % self.name, [prev_layer_size, output_size],
+                W = tf.compat.v1.get_variable('%sW_out_%s' % (prefix, self.name), [prev_layer_size, output_size],
                                               initializer=tf.compat.v1.initializers.glorot_uniform(seed=0))
-                b = tf.compat.v1.get_variable('b_out_%s' % self.name, [output_size],
+                b = tf.compat.v1.get_variable('%sb_out_%s' % (prefix, self.name), [output_size],
                                               initializer=tf.compat.v1.zeros_initializer())
-                self.output = tf.compat.v1.add(tf.compat.v1.matmul(hidden_output, W), b, name='output_discrete')
+                self.output = tf.compat.v1.add(tf.compat.v1.matmul(hidden_output, W), b,
+                                               name='%soutput_discrete' % prefix)
             elif action_space == 'continuous':
                 W, b, self.output = [], [], []
                 for output_name in ['mean', 'stdev']:
-                    W.append(tf.compat.v1.get_variable('W_%s' % output_name, [prev_layer_size, 1],
+                    W.append(tf.compat.v1.get_variable('%sW_%s' % (prefix, output_name), [prev_layer_size, 1],
                                                        initializer=tf.compat.v1.initializers.glorot_uniform(seed=0)))
-                    b.append(tf.compat.v1.get_variable('b_%s' % output_name, [1],
+                    b.append(tf.compat.v1.get_variable('%sb_%s' % (prefix, output_name), [1],
                                                        initializer=tf.compat.v1.zeros_initializer()))
                     self.output.append(tf.compat.v1.add(tf.compat.v1.matmul(hidden_output, W[-1]), b[-1],
-                                                        name='output_%s' % output_name))
+                                                        name='%soutput_%s' % (prefix, output_name)))
             self.Ws.append(W)
             self.bs.append(b)
         return self
@@ -104,6 +102,7 @@ class NeuralNetwork:
             if trainable_layers is None:
                 var_list = None
             else:  # train only top <trainable_layers> layers
+                # todo: deal with continous action space
                 var_list = self.Ws[-trainable_layers:] + self.bs[-trainable_layers:]
             self.train_step = self.optimizer.minimize(self.loss, var_list=var_list, name='train_step')
 
