@@ -12,7 +12,7 @@ class ActorCritic:
 
     def __init__(self, name, env, state_size, action_size, action_space, policy_hidden_layers, baseline_hidden_layers,
                  policy_net=None, baseline_net=None, policy_lr=0.0004, baseline_lr=0.01, discount_factor=0.99,
-                 max_episodes=1000, memory_size=5000, n_to_activate_memory=5, n_to_use_memory=2,
+                 max_episodes=5000, memory_size=5000, n_to_activate_memory=5, n_to_use_memory=2,
                  n_fails_to_reset_memory=3, use_memory=False, stop_at_solved=True, verbose=True, render=False,
                  eps_to_render=10, saved_path=None, state_translation=None, source_agents=None, is_source=False,
                  save_final_model=False, optimizer=tf.compat.v1.train.AdamOptimizer):

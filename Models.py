@@ -63,7 +63,6 @@ class NeuralNetwork:
 
     def set_output(self, output_size=1, action_space='discrete', prefix=''):
         with tf.compat.v1.variable_scope(self.scope, reuse=tf.compat.v1.AUTO_REUSE):
-            # with tf.compat.v1.name_scope(self.scope.original_name_scope):
             if self.output is not None:  # changing existing output
                 self.Ws = self.Ws[:-1]
                 self.bs = self.bs[:-1]
@@ -90,7 +89,6 @@ class NeuralNetwork:
         return self
 
     def set_baseline_loss(self):
-        # with tf.compat.v1.name_scope(self.scope.original_name_scope):
         with tf.compat.v1.variable_scope(self.scope, reuse=tf.compat.v1.AUTO_REUSE):
             v = tf.compat.v1.squeeze(self.output)
             self.loss = tf.compat.v1.math.squared_difference(v, self.target)
@@ -98,7 +96,6 @@ class NeuralNetwork:
         return self
 
     def set_policy_loss(self, action_space='discrete', epsilon=0.0000001):
-        # with tf.compat.v1.name_scope(self.scope.original_name_scope):
         with tf.compat.v1.variable_scope(self.scope, reuse=tf.compat.v1.AUTO_REUSE):
             if action_space == 'discrete':
                 self.actions_distribution = tf.compat.v1.squeeze(tf.compat.v1.nn.softmax(self.output),
@@ -117,15 +114,8 @@ class NeuralNetwork:
         return self
 
     def set_train_step(self, trainable_layers=0):
-        # with tf.compat.v1.name_scope(self.scope.original_name_scope):
         with tf.compat.v1.variable_scope(self.scope, reuse=tf.compat.v1.AUTO_REUSE):
-            # if trainable_layers is None:
-            #     var_list = None
-            # else:  # train only top <trainable_layers> layers
-            # todo: deal with continous action space
             var_list = self.Ws[-trainable_layers:] + self.bs[-trainable_layers:]
             if self.source_nets is not None:
                 var_list += self.lateral_Ws + self.lateral_bs
             self.train_step = self.optimizer.minimize(self.loss, var_list=var_list, name='train_step')
-
-    # todo: check if models are actually frozen during progressive network training

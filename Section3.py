@@ -8,17 +8,16 @@ from StateTranslations import *
 import tensorflow as tf
 from ResultSaving import save_results
 
-render = False
-# render = True
-eps_to_render = 1
 
 # todo: choose sources and target env
 source_env_names, target_env_name = ['Acrobot-v1', 'MountainCarContinuous-v0'], 'CartPole-v1'
 # source_env_names, target_env_name = ['CartPole-v1', 'Acrobot-v1'], 'MountainCarContinuous-v0'
 
+render = False
+eps_to_render = 1
 env_params = {
     'CartPole-v1': {
-        'policy_hidden_layers': [12], 'baseline_hidden_layers': [12], 'policy_lr': 0.0004, 'baseline_lr': 0.01,
+        'policy_hidden_layers': [12], 'baseline_hidden_layers': [12], 'policy_lr': 0.001, 'baseline_lr': 0.01,
         'action_space': 'discrete',
         'optimizer': tf.compat.v1.train.RMSPropOptimizer
     },

@@ -11,6 +11,7 @@ def translate_cartpole_to_acrobot(cartpole_state):
     """
     cart_pos, cart_vel, pole_angle, pole_ang_vel = cartpole_state
     return [1, 0, 1, 0, -1/(cart_vel + pole_angle + pole_ang_vel), 0]
+    # return [cart_pos, cart_vel, pole_angle, pole_ang_vel, 0, 0]
 
 
 def translate_mountaincar_to_cartpole(mountaincart_state):
@@ -33,6 +34,7 @@ def translate_cartpole_to_mountaincar(cartpole_state):
     """
     cart_pos, cart_vel, pole_angle, pole_ang_vel = cartpole_state
     return [0, -1/(cart_vel + pole_angle + pole_ang_vel)]
+    # return [cart_pos, cart_vel]
 
 
 def translate_mountaincar_to_acrobot(mountaincart_state):

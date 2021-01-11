@@ -9,18 +9,15 @@ import tensorflow as tf
 from ResultSaving import save_results
 
 
-render = False
-# render = True
-eps_to_render = 1
-
 # todo: choose source and target env
 # source_env_name, target_env_name = 'Acrobot-v1', 'CartPole-v1'
 source_env_name, target_env_name = 'CartPole-v1', 'MountainCarContinuous-v0'
-
 # NOT REQUIRED:
 # source_env_name, target_env_name = 'MountainCarContinuous-v0', 'CartPole-v1'
 # source_env_name, target_env_name = 'Acrobot-v1', 'MountainCarContinuous-v0'
 
+render = False
+eps_to_render = 1
 env_params = {
     'CartPole-v1': {
         'policy_hidden_layers': [12], 'baseline_hidden_layers': [12], 'policy_lr': 0.0004, 'baseline_lr': 0.01,
