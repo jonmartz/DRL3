@@ -3,6 +3,7 @@ from ActorCritic import ActorCritic
 import matplotlib.pyplot as plt
 import csv
 import os
+from ResultSaving import save_results
 
 
 # todo: choose env
@@ -29,31 +30,8 @@ max_steps = env.spec.max_episode_steps + 1
 reward_threshold = env.spec.reward_threshold
 print('env: %s, max_steps=%s, reward_threshold=%s\n' % (env_name, max_steps, reward_threshold))
 agent = ActorCritic(env_name, env, global_state_size, global_action_size,
-                    render=render, eps_to_render=eps_to_render, **params[env_name])
+                    render=render, eps_to_render=eps_to_render,
+                    # save_final_model=True,
+                    **params[env_name])
 results = agent.train()
-
-dir_name = 'train history section 1'
-if not os.path.exists(f'{dir_name}'):
-    os.makedirs(f'{dir_name}')
-
-# plot
-avg_rewards = results[0]
-plt.plot(range(1, len(avg_rewards) + 1), avg_rewards)
-plt.xlabel('episode')
-plt.ylabel('last 100 eps. average reward')
-plt.savefig(f'{dir_name}/{env_name}.png', bbox_inches='tight')
-plt.show()
-
-# save to csv
-solving_ep = results[-2]
-time_to_solve = results[-1]
-with open(f'{dir_name}/{env_name}.csv', 'w', newline='') as file:
-    writer = csv.writer(file)
-    header = ['episode', 'avg 100 rewards', 'avg 100 policy loss',
-              'avg 100 baseline loss', 'time to solve']
-    writer.writerow(header)
-    episode = 0
-    for reward, policy_loss, baseline_loss in zip(*results[:-2]):
-        episode += 1
-        row = [episode, reward, policy_loss, baseline_loss, time_to_solve]
-        writer.writerow(row)
+save_results('train history section 1', f'{env_name}', results)

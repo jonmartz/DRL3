@@ -7,6 +7,9 @@ across experimental runs and tensorboard is not capable of this.
 import tensorflow as tf
 import pandas as pd
 from tensorflow.keras.callbacks import TensorBoard
+import matplotlib.pyplot as plt
+import csv
+import os
 
 
 class ModifiedTensorBoard(TensorBoard):
@@ -67,33 +70,68 @@ class ModifiedTensorBoard(TensorBoard):
 def write_average_results():
     df = pd.read_csv('results.csv')
     df_algs = df.groupby('algorithm')
-    for alg in envs:
+    for alg in tasks:
         df_alg = df_algs.get_group(alg)
         df_alg.groupby('episode').mean().to_csv('avg_results_%s.csv' % alg)
 
 
-# section = 'train history section 1'
-# envs = [
-#     'CartPole-v1',
-#     'Acrobot-v1',
-#     'MountainCarContinuous-v0',
-# ]
+def save_results(dir_name, file_name, results):
+    if not os.path.exists(f'{dir_name}'):
+        os.makedirs(f'{dir_name}')
 
-section = 'train history section 2'
-envs = [
-    'Acrobot-v1 to CartPole-v1',
-    'CartPole-v1 to MountainCarContinuous-v0',
-]
+    # plot
+    avg_rewards = results[0]
+    plt.plot(range(1, len(avg_rewards) + 1), avg_rewards)
+    plt.xlabel('episode')
+    plt.ylabel('last 100 eps. average reward')
+    plt.savefig(f'{dir_name}/{file_name}.png', bbox_inches='tight')
+    plt.show()
 
-# write_average_results()
-for env in envs:
-    print('alg: %s' % env)
-    tb = ModifiedTensorBoard(log_dir=f'logs/{section}/{env}')
-    df = pd.read_csv(f'{section}/{env}.csv')
-    for i, row in df.iterrows():
-        ep = row['episode']
-        print('\t\tep: %d/%d' % (ep, len(df)))
-        avg_reward = row['avg 100 rewards']
-        loss = row['avg 100 policy loss']
-        tb.step = ep
-        tb.update_stats(loss=loss, reward_steps=ep, reward_avg100=avg_reward)
+    # save to csv
+    solving_ep = results[-2]
+    time_to_solve = results[-1]
+    with open(f'{dir_name}/{file_name}.csv', 'w', newline='') as file:
+        writer = csv.writer(file)
+        header = ['episode', 'avg 100 rewards', 'avg 100 policy loss',
+                  'avg 100 baseline loss', 'time to solve']
+        writer.writerow(header)
+        episode = 0
+        for reward, policy_loss, baseline_loss in zip(*results[:-2]):
+            episode += 1
+            row = [episode, reward, policy_loss, baseline_loss, time_to_solve]
+            writer.writerow(row)
+
+
+if __name__ == "__main__":
+    # section = 'train history section 1'
+    # tasks = [
+    #     'CartPole-v1',
+    #     'Acrobot-v1',
+    #     'MountainCarContinuous-v0',
+    # ]
+
+    # section = 'train history section 2'
+    # tasks = [
+    #     'Acrobot-v1 to CartPole-v1',
+    #     'CartPole-v1 to MountainCarContinuous-v0',
+    # ]
+
+    section = 'train history section 3'
+    tasks = [
+        "['Acrobot-v1', 'MountainCarContinuous-v0'] to CartPole-v1",
+        "['CartPole-v1', 'Acrobot-v1'] to MountainCarContinuous-v0",
+    ]
+
+
+    # write_average_results()
+    for task in tasks:
+        print('alg: %s' % task)
+        tb = ModifiedTensorBoard(log_dir=f'logs/{section}/{task}')
+        df = pd.read_csv(f'{section}/{task}.csv')
+        for i, row in df.iterrows():
+            ep = row['episode']
+            print('\t\tep: %d/%d' % (ep, len(df)))
+            avg_reward = row['avg 100 rewards']
+            loss = row['avg 100 policy loss']
+            tb.step = ep
+            tb.update_stats(loss=loss, reward_steps=ep, reward_avg100=avg_reward)
