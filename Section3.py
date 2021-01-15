@@ -19,7 +19,7 @@ env_params = {
     'CartPole-v1': {
         'policy_hidden_layers': [12], 'baseline_hidden_layers': [12], 'policy_lr': 0.001, 'baseline_lr': 0.01,
         'action_space': 'discrete',
-        'optimizer': tf.compat.v1.train.RMSPropOptimizer
+        # 'optimizer': tf.compat.v1.train.RMSPropOptimizer
     },
     'Acrobot-v1': {
         'policy_hidden_layers': [12], 'baseline_hidden_layers': [12], 'policy_lr': 0.0004, 'baseline_lr': 0.001,
@@ -48,7 +48,6 @@ for source_env_name in source_env_names:
 target_params = env_params[target_env_name]
 target_agent = ActorCritic(target_env_name, target_env, global_state_size, global_action_size, render=render,
                            eps_to_render=eps_to_render, source_agents=source_agents, **target_params)
-results = target_agent.train(
-    reinit_output_weights_each_ep=True
-)
-save_results('train history section 3', f'{source_env_names} to {target_env_name}', results)
+for i in range(10):  # cross validation
+    results = target_agent.train(reinit_output_weights_each_ep=True)
+    save_results('train history section 3', f'{source_env_names} to {target_env_name}', results, i)

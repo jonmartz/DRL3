@@ -10,6 +10,16 @@ class NeuralNetwork:
 
     def __init__(self, state_size, output_size, learning_rate, hidden_layer_sizes, name, source_nets=None,
                  optimizer=tf.compat.v1.train.AdamOptimizer):
+        """
+        General neural network architecture, without the output layer and loss function.
+        :param state_size: input dimension
+        :param output_size: actions space dimension. Possibly not used (if output layer is not set)
+        :param learning_rate: for optimizer
+        :param hidden_layer_sizes: list of hidden layer sizes
+        :param name: string
+        :param source_nets: in case of progressive net: list of NeuralNetwork instances to act as source nets
+        :param optimizer: type of optimizer, from tf.compat.v1.train
+        """
         self.state_size = state_size
         self.output_size = output_size
         self.learning_rate = learning_rate
@@ -28,10 +38,10 @@ class NeuralNetwork:
             self.action = tf.compat.v1.placeholder(tf.compat.v1.float32, [self.output_size], name='action')
             self.actions_distribution, self.sampled_action = None, None
 
+            # build hidden layers
             self.Ws, self.bs, self.Zs, self.As = [], [], [], []
             if source_nets is not None:
                 self.lateral_Ws, self.lateral_bs = [], []
-
             prev_layer_size, A = self.state_size, self.state
             for i, layer_size in enumerate(hidden_layer_sizes):
                 W = tf.compat.v1.get_variable('W%d' % i, [prev_layer_size, layer_size],
@@ -40,7 +50,8 @@ class NeuralNetwork:
                                               initializer=tf.compat.v1.zeros_initializer())
                 Z = tf.compat.v1.add(tf.compat.v1.matmul(A, W), b)
 
-                if source_nets is not None:  # add hidden output of source nets before activation
+                # in case of progressive net, add hidden output of source nets before activation
+                if source_nets is not None:
                     for j, source_net in enumerate(source_nets):
                         source_Z = source_net.Zs[i]
                         source_layer_size = source_net.hidden_layer_sizes[i]
@@ -62,6 +73,14 @@ class NeuralNetwork:
                 prev_layer_size = layer_size
 
     def set_output(self, output_size=1, action_space='discrete', prefix=''):
+        """
+        Add an output layer to the net. If continuous, the output size is 2 such that it represents the mean and
+        standard deviation of the actions space's Gaussian distribution.
+        :param output_size: actions space dimension
+        :param action_space: type of action space: 'discrete' or 'continuous'
+        :param prefix: to be appended to var names, to avoid tensorflow graph collisions
+        :return: self
+        """
         with tf.compat.v1.variable_scope(self.scope, reuse=tf.compat.v1.AUTO_REUSE):
             if self.output is not None:  # changing existing output
                 self.Ws = self.Ws[:-1]
@@ -89,6 +108,10 @@ class NeuralNetwork:
         return self
 
     def set_baseline_loss(self):
+        """
+        Set the baseline loss, which is the MSE between predicted value and self.target
+        :return: self
+        """
         with tf.compat.v1.variable_scope(self.scope, reuse=tf.compat.v1.AUTO_REUSE):
             v = tf.compat.v1.squeeze(self.output)
             self.loss = tf.compat.v1.math.squared_difference(v, self.target)
@@ -96,6 +119,12 @@ class NeuralNetwork:
         return self
 
     def set_policy_loss(self, action_space='discrete', epsilon=0.0000001):
+        """
+         Set the policy loss, as indicated by the course's material.
+        :param action_space:
+        :param epsilon:
+        :return: self
+        """
         with tf.compat.v1.variable_scope(self.scope, reuse=tf.compat.v1.AUTO_REUSE):
             if action_space == 'discrete':
                 self.actions_distribution = tf.compat.v1.squeeze(tf.compat.v1.nn.softmax(self.output),
@@ -114,6 +143,10 @@ class NeuralNetwork:
         return self
 
     def set_train_step(self, trainable_layers=0):
+        """
+        Add a trainin step to the net, which is called in a session to update the weight with the loss gradient.
+        :param trainable_layers: 0 to train all layers, n>0 to train the last n layers and freeze the rest (fine-tune)
+        """
         with tf.compat.v1.variable_scope(self.scope, reuse=tf.compat.v1.AUTO_REUSE):
             var_list = self.Ws[-trainable_layers:] + self.bs[-trainable_layers:]
             if self.source_nets is not None:

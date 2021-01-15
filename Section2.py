@@ -10,8 +10,8 @@ from ResultSaving import save_results
 
 
 # todo: choose source and target env
-# source_env_name, target_env_name = 'Acrobot-v1', 'CartPole-v1'
-source_env_name, target_env_name = 'CartPole-v1', 'MountainCarContinuous-v0'
+source_env_name, target_env_name = 'Acrobot-v1', 'CartPole-v1'
+# source_env_name, target_env_name = 'CartPole-v1', 'MountainCarContinuous-v0'
 # NOT REQUIRED:
 # source_env_name, target_env_name = 'MountainCarContinuous-v0', 'CartPole-v1'
 # source_env_name, target_env_name = 'Acrobot-v1', 'MountainCarContinuous-v0'
@@ -52,13 +52,10 @@ mixed_params['state_translation'] = state_translations[f'{target_env_name}>{sour
 reinit_output_weights_each_ep = mixed_params.pop('reinit_output_weights_each_ep')
 
 agent = ActorCritic(source_env_name, target_env, global_state_size, global_action_size, render=render,
-                    eps_to_render=eps_to_render,
-                    saved_path=saved_path,
-                    **mixed_params)
-results = agent.train(
-    fine_tune=True,
-    freeze_hidden=True,
-    reinit_output_weights_each_ep=reinit_output_weights_each_ep,
-)
-task_name = f'{source_env_name} to {target_env_name}'
-save_results('train history section 2', f'{source_env_name} to {target_env_name}', results)
+                    eps_to_render=eps_to_render, saved_path=saved_path, **mixed_params)
+for i in range(10):  # cross validation
+    print(f'iteration {i}')
+    results = agent.train(fine_tune=True, freeze_hidden=True,
+                          reinit_output_weights_each_ep=reinit_output_weights_each_ep)
+    task_name = f'{source_env_name} to {target_env_name}'
+    save_results('train history section 2', f'{source_env_name} to {target_env_name}', results, i)

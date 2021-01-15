@@ -3,6 +3,10 @@ from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 import matplotlib.pyplot as plt
 from sklearn import tree
 
+"""
+For plotting the decision trees as shown in the report.
+"""
+
 env_name = 'CartPole-v1'
 df = pd.read_csv('trees/hist_%s.csv' % env_name)
 fig, ax = plt.subplots(figsize=(15, 4))
@@ -30,8 +34,6 @@ features = df.columns[:-1]
 
 model.fit(x, y)
 print('ccp_alpha: %s, acc: %.4f' % (ccp_alpha, model.score(x, y)))
-
-
 annotations = tree.plot_tree(model, feature_names=features,
                              # class_names=class_names,
                              fontsize=10, filled=True, impurity=False, proportion=True, rounded=True)

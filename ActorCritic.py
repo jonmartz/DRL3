@@ -16,6 +16,38 @@ class ActorCritic:
                  n_fails_to_reset_memory=3, use_memory=False, stop_at_solved=True, verbose=True, render=False,
                  eps_to_render=10, saved_path=None, state_translation=None, source_agents=None, is_source=False,
                  save_final_model=False, optimizer=tf.compat.v1.train.AdamOptimizer):
+        """
+        An actor-critic model that may implement the fine-tuning task, the progressive nets task or simply training
+        from scratch.
+        :param name: string
+        :param env: from gym
+        :param state_size: global state size, common to all used environments
+        :param action_size: global action size, common to all used environments
+        :param action_space: 'discrete' or 'continuous'
+        :param policy_hidden_layers: list of layer sizes for the policy net
+        :param baseline_hidden_layers: list of layer sizes for the baseline net
+        :param policy_net: pre-trained policy net (unused)
+        :param baseline_net: pre-trained baseline net (unused)
+        :param policy_lr: lr for policy net
+        :param baseline_lr: lr for baseline net
+        :param discount_factor: for the actor-critic algorithm
+        :param max_episodes: num episodes after which to stop training
+        :param memory_size: max size of Experience Replay buffer
+        :param n_to_activate_memory: num of consecutive episodes above reward threshold to activate memory
+        :param n_to_use_memory: num of episodes below reward threshold to replay the agent's memory
+        :param n_fails_to_reset_memory: num of consecutive episodes below reward threshold to reset memory
+        :param use_memory: boolean that determines the use of Experience Replay
+        :param stop_at_solved: stop training after solving the task (avg of last 100 eps above threshold)
+        :param verbose: to print training progress
+        :param render: boolean for rendering episodes
+        :param eps_to_render: n such that if episode_num % n = 0 then the episode is rendered
+        :param saved_path: to save trained model to
+        :param state_translation: in case of being fed states form a foreign environment, a state translation function
+        :param source_agents: in case of progressive net, list of ActorCritic instances to act as source
+        :param is_source: if this agent is a source in a progressive net task
+        :param save_final_model: boolean for saving the trained model or not
+        :param optimizer: for the policy net
+        """
         self.name = name
         self.env = env
         self.state_size = state_size
@@ -68,9 +100,17 @@ class ActorCritic:
               reinit_output_weights_each_ep=False, eps_to_restart_fitting=10):
         """
         Train the agent with the Advantage Actor-Critic algorithm.
-        :return: [average_rewards_total, average_policy_losses_total, average_baseline_losses_total, time_to_solve]
-                 where "average" is the moving average of the last 100 episodes and the "losses" are averaged across
-                 each episode's steps
+        :param epsilon: very small number
+        :param fine_tune: if model is to be only fine-tuned
+        :param save_hist: to save the training history in a csv file
+        :param fitting: boolean for fitting the model or simply evaluating it for many episodes
+        :param freeze_hidden: bollean for freezing the model layers except the output one
+        :param reinit_output_weights_each_ep: boolean for activating the custom weight update mechanism
+         described in the report
+        :param eps_to_restart_fitting: for the custom weight update mechanism
+        :return: [average_rewards_total, average_policy_losses_total, average_baseline_losses_total, solving ep,
+         time_to_solve] where "average" is the moving average of the last 100 episodes and the "losses" are
+         averaged across each episode's steps
         """
         np.random.seed(1)
         tf.compat.v1.reset_default_graph()
@@ -152,7 +192,6 @@ class ActorCritic:
                         action_vector[0] = action
                         action = [action]
 
-                    # print(f's={list(state[0])} a={action}')
                     if save_hist:
                         rows.append([episode, step] + list(state.reshape(-1)) + [action])
 
@@ -167,8 +206,6 @@ class ActorCritic:
                         # Compute TD-error and update the network's weights
                         if done:
                             baseline_next = 0
-                            # if episode_rewards[episode] < self.reward_threshold:
-                            #     reward = -500
                         else:
                             # get the baseline of the next state
                             feed_dict = {self.baseline_net.state: next_state}
@@ -278,7 +315,7 @@ class ActorCritic:
 
                 if solved:
                     if time_to_solve is None:
-                        print('SOLVED!!!')
+                        print('\tSOLVED!!!')
                         time_to_solve = (round(time() * 1000) - start_time) / 1000
                         solving_ep = self.max_episodes
                         if self.save_final_model:
@@ -296,6 +333,12 @@ class ActorCritic:
         return avg_rewards_total, avg_policy_losses_total, avg_baseline_losses_total, solving_ep, time_to_solve
 
     def process_state(self, state):
+        """
+        Process a state. This includes scaling its values, translating it in case it comes from a foreign env,
+        and padding it with zeroes to comply with the global state size.
+        :param state: to be processed
+        :return: processed state
+        """
         if not self.is_source and self.action_space == 'continuous':
             state = self.scaler.transform([state]).squeeze()
         if self.state_translation is not None:
@@ -304,8 +347,14 @@ class ActorCritic:
         return state.reshape(1, -1)
 
     def load_networks(self, sess, fine_tune=False, freeze_hidden=False):
+        """
+        Initialize all the networks
+        :param sess: from tf v1
+        :param fine_tune: boolean indicating the task of fine-tuning
+        :param freeze_hidden: boolean indicating whether to freeze all but output layer or not
+        """
 
-        if self.progressive:  # progressive network case
+        if self.progressive:  # section 3 (progressive network case)
 
             source_policy_nets, source_baseline_nets = [], []
             for agent in self.source_agents:
@@ -334,7 +383,7 @@ class ActorCritic:
                 saver = tf.compat.v1.train.Saver(var_list=var_list)
                 saver.restore(sess, agent.saved_path)
 
-        else:
+        else:  # section 1 or 2
             self.policy_net = NeuralNetwork(self.state_size, self.env_action_size, self.policy_lr,
                                             self.policy_hidden_layers, f'{self.name}_policy_net',
                                             optimizer=self.optimizer)
@@ -395,5 +444,5 @@ if __name__ == "__main__":
                                eps_to_render=1, saved_path=saved_path, stop_at_solved=False,
                                **params[env_name])
     results = target_agent.train(
-        # save_hist=True, fitting=False
+        save_hist=True, fitting=False
     )

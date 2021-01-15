@@ -29,9 +29,8 @@ env = gym.make(env_name)
 max_steps = env.spec.max_episode_steps + 1
 reward_threshold = env.spec.reward_threshold
 print('env: %s, max_steps=%s, reward_threshold=%s\n' % (env_name, max_steps, reward_threshold))
-agent = ActorCritic(env_name, env, global_state_size, global_action_size,
-                    render=render, eps_to_render=eps_to_render,
-                    # save_final_model=True,
-                    **params[env_name])
-results = agent.train()
-save_results('train history section 1', f'{env_name}', results)
+agent = ActorCritic(env_name, env, global_state_size, global_action_size, render=render, eps_to_render=eps_to_render,
+                    save_final_model=True, **params[env_name])
+for i in range(10):  # cross validation
+    results = agent.train()
+    save_results('train history section 1', f'{env_name}', results, i)
